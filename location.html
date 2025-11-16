@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Prima – Location</title>
+  <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <!-- MarkerCluster CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+  />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    /* Header (similar to Home page) */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 60px;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    nav a {
+      margin-left: 30px;
+      text-decoration: none;
+      color: #222;
+      font-size: 16px;
+    }
+
+    nav a:hover {
+      color: green;
+    }
+
+    /* Layout */
+    #map-layout {
+      height: calc(100vh - 80px);
+      display: flex;
+    }
+
+    .sidebar {
+      width: 340px;
+      background: #fafafa;
+      border-right: 1px solid #ddd;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+    }
+
+    /* Sidebar widgets */
+    .filter-group-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 8px 0 4px;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    #Resultlist-title {
+      font-size: 18px;
+      font-weight: bold; 
+      padding: 7px;
+      margin: 8px 0 4px;
+      color:rgb(41, 136, 95)
+    }
+
+    #searchBox {
+      width: 100%;
+      padding: 7px;
+      margin: 10px 0 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    #locationList {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      max-height: 220px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    #locationList li {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+
+    #locationList li:last-child {
+      border-bottom: none;
+    }
+
+    #locationList li:hover {
+      background: #eaf7e8;
+    }
+
+    #infoBox {
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      min-height: 80px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <!-- adjust logo path if needed -->
+      <img src="img/logo.png" width="70" height="70" alt="Prima Logo">
+      <span style="color: green;">Prima</span>
+    </div>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="location.html">Prima Location</a>
+      <a href="login.html">Account</a>
+    </nav>
+  </header>
+
+  <!-- Sidebar + Map -->
+  <div id="map-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <h3 style="margin-bottom: 4px; font-size: 25px; color:rgb(41, 136, 95)">
+        Let's find your nearest refund point!
+      </h3>
+      
+      <!-- Search -->
+      <input id="searchBox" type="text" placeholder="Search by ID or Name..." />
+
+      <!-- Capacity filters -->
+      <div class="filter-group-title">Available capacity</div>
+      <div class="filter-row">
+        <input type="checkbox" id="capHigh">
+        <label for="capHigh">High (≥ 80)</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="capMedium">
+        <label for="capMedium">Medium (50–79)</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="capLow">
+        <label for="capLow">Low (20–49)</label>
+      </div>
+
+      <!-- Time filters -->
+      <div class="filter-group-title">Opening time</div>
+      <div class="filter-row">
+        <input type="checkbox" id="timeDay">
+        <label for="timeDay">Day time (7am – 7pm)</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="timeNight">
+        <label for="timeNight">Night time (After 7pm)</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="timeFull">
+        <label for="timeFull">Full day (24h)</label>
+      </div>
+
+      <!-- Recyclables filters -->
+      <div class="filter-group-title">Recyclables</div>
+      <div class="filter-row">
+        <input type="checkbox" id="filterPlastic">
+        <label for="filterPlastic">Plastic</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="filterGlass">
+        <label for="filterGlass">Glass</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="filterAluminium">
+        <label for="filterAluminium">Aluminium</label>
+      </div>
+      <div class="filter-row">
+        <input type="checkbox" id="filterPoppers">
+        <label for="filterPoppers">Poppers</label>
+      </div>
+
+      <!-- Result list -->
+      <div id="Resultlist-title">Result List</div> 
+      <ul id="locationList"></ul>
+
+      <!-- Info -->
+      <div id="infoBox">
+        <em>Select a location to see details...</em>
+      </div>
+    </aside>
+
+    <!-- MAP -->
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- MarkerCluster JS -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <script>
+    // Sidebar elements
+    const locationList        = document.getElementById("locationList");
+    const infoBox             = document.getElementById("infoBox");
+    const searchBox           = document.getElementById("searchBox");
+
+    const capHigh             = document.getElementById("capHigh");
+    const capMedium           = document.getElementById("capMedium");
+    const capLow              = document.getElementById("capLow");
+
+    const timeDay             = document.getElementById("timeDay");
+    const timeNight           = document.getElementById("timeNight");
+    const timeFull            = document.getElementById("timeFull");
+
+    const filterPlastic       = document.getElementById("filterPlastic");
+    const filterGlass         = document.getElementById("filterGlass");
+    const filterAluminium     = document.getElementById("filterAluminium");
+    const filterPoppers       = document.getElementById("filterPoppers");
+
+    const pointItems = []; // { layer, props: {...processed...} }
+
+    // Helper: string/number to boolean
+    function toBool(v) {
+      if (v === true) return true;
+      if (v === false || v == null) return false;
+      if (typeof v === "number") return v !== 0;
+      if (typeof v === "string") {
+        const s = v.trim().toLowerCase();
+        return ["y","yes","true","1"].includes(s);
+      }
+      return false;
+    }
+
+    // Parse "9:30:00 AM" / "22:00:00 AM" to hour in 24h (float)
+    function parseTimeToHour(str) {
+      if (!str) return null;
+      str = str.trim();
+      let [timePart, ampm] = str.split(" ");
+      if (!timePart) return null;
+
+      let [hStr, mStr, sStr] = timePart.split(":");
+      let h = Number(hStr) || 0;
+      let m = Number(mStr) || 0;
+
+      if (ampm) {
+        ampm = ampm.toUpperCase();
+        if (ampm === "PM" && h < 12) h += 12;
+        if (ampm === "AM" && h === 12) h = 0;
+      }
+
+      return h + m / 60;
+    }
+
+    // Classify time into 'full', 'day', 'night'
+    function getTimeClass(openStr, closeStr) {
+      const oh = parseTimeToHour(openStr);
+      const ch = parseTimeToHour(closeStr);
+      if (oh == null || ch == null) return null;
+
+      // Duration; if 0 -> assume 24h (00:00 to 00:00)
+      let dur = (ch - oh + 24) % 24;
+      if (dur === 0) dur = 24;
+
+      if (dur >= 23.5) {
+        return "full";
+      }
+
+      // Day: mainly 7–17
+      if (oh >= 7 && ch <= 17) {
+        return "day";
+      }
+
+      // Night: extends into late evening
+      if (ch > 17 || oh >= 17) {
+        return "night";
+      }
+
+      // Fallback: treat as day
+      return "day";
+    }
+
+    // Classify capacity into 'high','medium','low','none'
+    function getCapacityClass(avail) {
+      const a = Number(avail);
+      if (!isFinite(a)) return "none";
+      if (a >= 80) return "high";
+      if (a >= 50) return "medium";
+      if (a >= 20) return "low";
+      return "none";
+    }
+
+    // Basemaps
+    const osm = L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { maxZoom: 19 }
+    );
+
+    const satellite = L.tileLayer(
+      "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+      { maxZoom: 20, subdomains: ["mt0","mt1","mt2","mt3"] }
+    );
+
+    // Map
+    const map = L.map("map", {
+      center: [14.07, 100.62],
+      zoom: 11,
+      layers: [osm],
+    });
+
+    const layerControl = L.control.layers(
+      { "OpenStreetMap": osm, "Satellite": satellite },
+      {}
+    ).addTo(map);
+
+    let boundaryLayer;
+    let pointsLayer;
+
+    // CLUSTER GROUP
+    const markersCluster = L.markerClusterGroup();
+    map.addLayer(markersCluster);
+    layerControl.addOverlay(markersCluster, "Prima Points");
+
+    // Icons (your resized sizes)
+    const highIcon = L.icon({
+      iconUrl: "img/highCapa.png",
+      iconSize: [45, 60],
+      iconAnchor: [45, 60],
+      popupAnchor: [0, -60]
+    });
+
+    const mediumIcon = L.icon({
+      iconUrl: "img/mediumCapa.png",
+      iconSize: [30, 45],
+      iconAnchor: [30, 45],
+      popupAnchor: [0, -45]
+    });
+
+    const lowIcon = L.icon({
+      iconUrl: "img/lowCapa.png",
+      iconSize: [20, 35],
+      iconAnchor: [20, 35],
+      popupAnchor: [0, -35]
+    });
+
+    const notWorkingIcon = L.icon({
+      iconUrl: "img/notWorking.png",
+      iconSize: [30, 30],
+      iconAnchor: [30, 30],
+      popupAnchor: [0, -30]
+    });
+
+    // Marker from Available value
+    function createMarkerByAvailable(latlng, availRaw) {
+      const a = Number(availRaw);
+      if (!isFinite(a)) {
+        return L.marker(latlng, { icon: mediumIcon });
+      }
+      if (a === 0) {
+        return L.marker(latlng, { icon: notWorkingIcon });
+      }
+      if (a >= 80) {
+        return L.marker(latlng, { icon: highIcon });
+      }
+      if (a >= 50) {
+        return L.marker(latlng, { icon: mediumIcon });
+      }
+      if (a >= 20) {
+        return L.marker(latlng, { icon: lowIcon });
+      }
+      return L.marker(latlng, { icon: lowIcon });
+    }
+
+    // Legend
+    const legend = L.control({ position: "bottomright" });
+    legend.onAdd = function (map) {
+      const div = L.DomUtil.create("div", "info legend");
+      div.innerHTML = `
+        <div style="background:white; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:12px; line-height:1.3;">
+          <div style="margin-bottom:6px; font-weight:bold;">Capacity</div>
+          <div style="display:flex; align-items:center; margin-bottom:5px;">
+            <img src="img/highCapa.png" width="30" height="42" style="margin-right:6px;">
+            High(≥ 80%)
+          </div>
+          <div style="display:flex; align-items:center; margin-bottom:5px;">
+            <img src="img/mediumCapa.png" width="22" height="35" style="margin-right:6px;">
+            Medium (50–80%)
+          </div>
+          <div style="display:flex; align-items:center; margin-bottom:5px;">
+            <img src="img/lowCapa.png" width="15" height="22" style="margin-right:6px;">
+            Low (20–50%)
+          </div>
+          <div style="display:flex; align-items:center;">
+            <img src="img/notWorking.png" width="20" height="20" style="margin-right:6px;">
+            (Not working)
+          </div>
+        </div>
+      `;
+      return div;
+    };
+    legend.addTo(map);
+
+    // Load boundary
+    fetch("data/boundaryLayer.geojson")
+      .then(res => res.json())
+      .then(geojson => {
+        boundaryLayer = L.geoJSON(geojson, {
+          style: { color: "red", weight: 2, fillOpacity: 0.05 },
+          onEachFeature: (f, layer) => {
+            const en = f.properties.ADM2_EN || "";
+            const th = f.properties.ADM2_TH || "";
+            layer.bindPopup(`<strong>${en}</strong><br>${th}`);
+          }
+        }).addTo(map);
+
+        layerControl.addOverlay(boundaryLayer, "Boundary");
+        map.fitBounds(boundaryLayer.getBounds());
+      });
+
+    // Load points from Point.geojson
+    fetch("data/Point.geojson")
+      .then(res => res.json())
+      .then(geojson => {
+        pointsLayer = L.geoJSON(geojson, {
+          pointToLayer: (feature, latlng) => {
+            const p = feature.properties || {};
+            const available = p.Available ?? 0;
+            return createMarkerByAvailable(latlng, available);
+          },
+          onEachFeature: (feature, layer) => {
+            const p = feature.properties || {};
+
+            const name        = p.Name || "No name";
+            const id          = p.ID   || "";
+            const openStr     = p.Open || "";
+            const closeStr    = p.Close || "";
+            const status      = p.Status || "";
+            const capacity    = p.Capacity ?? "";
+            const available   = p.Available ?? 0;
+            const description = p.Description || "";
+            const address     = p.Address || "";
+
+            const plastic   = toBool(p.Plastic);
+            const glass     = toBool(p.Glass);
+            const aluminium = toBool(p.Aluminium);
+            const poppers   = toBool(p.Poppers);
+
+            const timeClass = getTimeClass(openStr, closeStr);       // 'day','night','full'
+            const capClass  = getCapacityClass(available);           // 'high','medium','low','none'
+
+            const recList = [
+              plastic   ? "Plastic"   : null,
+              glass     ? "Glass"     : null,
+              aluminium ? "Aluminium" : null,
+              poppers   ? "Poppers"   : null
+            ].filter(Boolean).join(", ") || "None";
+
+            layer.bindPopup(
+              `<strong>${id || name}</strong><br>` +
+              `${name}<br>` +
+              `Status: ${status || "N/A"}<br>` +
+              `Available: ${available}<br>` + 
+              `Capacity: ${capacity} items<br>` +
+              (openStr && closeStr ? `Open: ${openStr} – ${closeStr}<br>` : "") +
+              `Recyclables: ${recList}<br>` +
+              (address ? `Address: ${address}<br>` : "") +
+              (description ? `Description: ${description}` : "")
+            );
+
+            // Save to our array for filters/list
+            pointItems.push({
+              layer,
+              props: {
+                id,
+                name,
+                status,
+                available,
+                capacity,
+                openStr,
+                closeStr,
+                timeClass,
+                capClass,
+                plastic,
+                glass,
+                aluminium,
+                poppers,
+                description,
+                address
+              }
+            });
+          }
+        });
+
+        // ADD ALL POINTS TO CLUSTER (instead of map)
+        pointsLayer.eachLayer(layer => {
+          markersCluster.addLayer(layer);
+        });
+
+        // (We already added markersCluster to layerControl as "Points")
+
+        updateListByMap();
+
+        // Rebuild list when map moves or overlays toggle
+        map.on("moveend", updateListByMap);
+        map.on("layeradd", updateListByMap);
+        map.on("layerremove", updateListByMap);
+      });
+
+    // Rebuild sidebar list based on map view + filters + search
+    function updateListByMap() {
+      locationList.innerHTML = "";
+      infoBox.innerHTML = "<em>Select a location to see details...</em>";
+
+      // Use cluster layer instead of raw pointsLayer
+      if (!markersCluster || !map.hasLayer(markersCluster)) return;
+
+      const bounds = map.getBounds();
+      const text   = searchBox.value.toLowerCase().trim();
+
+      // Capacity filter state
+      const capHighOn   = capHigh.checked;
+      const capMediumOn = capMedium.checked;
+      const capLowOn    = capLow.checked;
+      const anyCapFilter = capHighOn || capMediumOn || capLowOn;
+
+      // Time filter state
+      const timeDayOn   = timeDay.checked;
+      const timeNightOn = timeNight.checked;
+      const timeFullOn  = timeFull.checked;
+      const anyTimeFilter = timeDayOn || timeNightOn || timeFullOn;
+
+      // Recyclables
+      const needPlastic   = filterPlastic.checked;
+      const needGlass     = filterGlass.checked;
+      const needAluminium = filterAluminium.checked;
+      const needPoppers   = filterPoppers.checked;
+
+      pointItems.forEach(item => {
+        const layer = item.layer;
+        const p     = item.props;
+
+        if (!bounds.contains(layer.getLatLng())) return;
+
+        const id        = p.id;
+        const name      = p.name;
+        const status    = p.status;
+        const available = p.available;
+        const capClass  = p.capClass;    // 'high','medium','low','none'
+        const timeClass = p.timeClass;   // 'day','night','full'
+        const openStr   = p.openStr;
+        const closeStr  = p.closeStr;
+        const capacity  = p.capacity;
+        const desc      = p.description;
+        const address   = p.address;
+
+        const plastic   = p.plastic;
+        const glass     = p.glass;
+        const aluminium = p.aluminium;
+        const poppers   = p.poppers;
+
+        // Capacity filter
+        if (anyCapFilter) {
+          if (capClass === "high" && !capHighOn) return;
+          if (capClass === "medium" && !capMediumOn) return;
+          if (capClass === "low" && !capLowOn) return;
+          if (capClass === "none") return;
+        }
+
+        // Time filter
+        if (anyTimeFilter) {
+          if (timeClass === "day"   && !timeDayOn)   return;
+          if (timeClass === "night" && !timeNightOn) return;
+          if (timeClass === "full"  && !timeFullOn)  return;
+        }
+
+        // Recyclables filter
+        if (needPlastic   && !plastic)   return;
+        if (needGlass     && !glass)     return;
+        if (needAluminium && !aluminium) return;
+        if (needPoppers   && !poppers)   return;
+
+        // Search filter
+        const idStr   = (id   || "").toLowerCase();
+        const nameStr = (name || "").toLowerCase();
+        if (text && !idStr.includes(text) && !nameStr.includes(text)) return;
+
+        const li = document.createElement("li");
+        li.textContent = id || name || "Unknown machine";
+
+        li.addEventListener("click", () => {
+          map.setView(layer.getLatLng(), 15);
+          layer.openPopup();
+
+          const recList = [
+            plastic   ? "Plastic"   : null,
+            glass     ? "Glass"     : null,
+            aluminium ? "Aluminium" : null,
+            poppers   ? "Poppers"   : null
+          ].filter(Boolean).join(", ") || "None";
+
+          infoBox.innerHTML = `
+            <strong>ID:</strong> ${id || "N/A"}<br>
+            <strong>Name:</strong> ${name || "N/A"}<br>
+            <strong>Status:</strong> ${status || "N/A"}<br>
+            <strong>Available:</strong> ${available} (capacity: ${capacity ?? "N/A"})<br>
+            ${
+              openStr && closeStr
+                ? `<strong>Open:</strong> ${openStr} – ${closeStr}<br>`
+                : ""
+            }
+            <strong>Recyclables:</strong> ${recList}<br>
+            ${address ? `<strong>Address:</strong> ${address}<br>` : ""}
+            ${desc ? `<strong>Note:</strong> ${desc}` : ""}
+          `;
+        });
+
+        locationList.appendChild(li);
+      });
+    }
+
+    // Update when filters/search change
+    searchBox.addEventListener("input", updateListByMap);
+
+    capHigh.addEventListener("change", updateListByMap);
+    capMedium.addEventListener("change", updateListByMap);
+    capLow.addEventListener("change", updateListByMap);
+
+    timeDay.addEventListener("change", updateListByMap);
+    timeNight.addEventListener("change", updateListByMap);
+    timeFull.addEventListener("change", updateListByMap);
+
+    filterPlastic.addEventListener("change", updateListByMap);
+    filterGlass.addEventListener("change", updateListByMap);
+    filterAluminium.addEventListener("change", updateListByMap);
+    filterPoppers.addEventListener("change", updateListByMap);
+  </script>
+
+</body>
+</html>
